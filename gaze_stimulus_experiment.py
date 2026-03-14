@@ -3,118 +3,211 @@ import mediapipe as mp
 import numpy as np
 import time
 import random
-from math import hypot
+import pandas as pd
+from datetime import datetime
 
-# -------------------------------
+# -----------------------------
 # MediaPipe Setup
-# -------------------------------
+# -----------------------------
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
 
-LEFT_EYE = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE = [362, 385, 387, 263, 373, 380]
-LEFT_IRIS = [474, 475, 476, 477]
-RIGHT_IRIS = [469, 470, 471, 472]
+LEFT_IRIS = [474,475,476,477]
+RIGHT_IRIS = [469,470,471,472]
 
-# -------------------------------
-# Experiment Settings
-# -------------------------------
-stimulus_positions = ["LEFT", "CENTER", "RIGHT"]
-stimulus_duration = 3
-total_trials = 10
-
-trial_count = 0
-correct_count = 0
-reaction_times = []
-
-current_stimulus = random.choice(stimulus_positions)
-stimulus_time = time.time()
-reaction_logged = False
-
+# -----------------------------
+# Camera
+# -----------------------------
 cap = cv2.VideoCapture(0)
 
-def calculate_EAR(eye_points):
-    vertical1 = hypot(eye_points[1][0] - eye_points[5][0],
-                      eye_points[1][1] - eye_points[5][1])
-    vertical2 = hypot(eye_points[2][0] - eye_points[4][0],
-                      eye_points[2][1] - eye_points[4][1])
-    horizontal = hypot(eye_points[0][0] - eye_points[3][0],
-                       eye_points[0][1] - eye_points[3][1])
-    return (vertical1 + vertical2) / (2.0 * horizontal)
+# -----------------------------
+# Calibration
+# -----------------------------
+calibration = {"LEFT":[], "CENTER":[], "RIGHT":[]}
+calibration_stage = ["LEFT","CENTER","RIGHT"]
 
-print("Experiment Started")
-print("Look at the red dot as quickly as possible.")
+stage_index = 0
+stage_time = time.time()
 
-while trial_count < total_trials:
-    ret, frame = cap.read()
-    if not ret:
+print("Calibration started")
+
+def get_ratio(mesh_points):
+
+    left_iris = mesh_points[LEFT_IRIS]
+    right_iris = mesh_points[RIGHT_IRIS]
+
+    left_center = np.mean(left_iris,axis=0)
+    right_center = np.mean(right_iris,axis=0)
+
+    left_ratio = (left_center[0]-mesh_points[33][0])/(mesh_points[133][0]-mesh_points[33][0])
+    right_ratio = (right_center[0]-mesh_points[362][0])/(mesh_points[263][0]-mesh_points[362][0])
+
+    return (left_ratio+right_ratio)/2
+
+while stage_index < 3:
+
+    ret,frame = cap.read()
+    frame = cv2.flip(frame,1)
+
+    h,w = frame.shape[:2]
+
+    rgb = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(rgb)
+
+    direction = calibration_stage[stage_index]
+
+    cv2.putText(frame,f"LOOK {direction}",(50,80),
+                cv2.FONT_HERSHEY_SIMPLEX,1.5,(0,255,0),3)
+
+    if results.multi_face_landmarks:
+
+        mesh_points = np.array(
+            [(int(p.x*w),int(p.y*h))
+             for p in results.multi_face_landmarks[0].landmark]
+        )
+
+        ratio = get_ratio(mesh_points)
+        calibration[direction].append(ratio)
+
+    if time.time()-stage_time > 3:
+        stage_index += 1
+        stage_time = time.time()
+
+    cv2.imshow("Calibration",frame)
+
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
-    frame = cv2.flip(frame, 1)
-    h, w = frame.shape[:2]
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+# Calculate thresholds
+left_thresh = np.mean(calibration["LEFT"])
+center_thresh = np.mean(calibration["CENTER"])
+right_thresh = np.mean(calibration["RIGHT"])
+
+print("Calibration complete")
+
+# -----------------------------
+# Experiment Variables
+# -----------------------------
+trial = 0
+total_trials = 10
+correct = 0
+
+reaction_times = []
+saccade_speeds = []
+
+prev_eye_x = None
+prev_time = None
+
+experiment_data = []
+
+stimulus_positions = ["LEFT","RIGHT"]
+
+state = "FIXATION"
+stimulus_time = 0
+fixation_time = time.time()
+
+print("Experiment Started")
+
+# -----------------------------
+# Experiment Loop
+# -----------------------------
+while trial < total_trials:
+
+    ret,frame = cap.read()
+    frame = cv2.flip(frame,1)
+
+    h,w = frame.shape[:2]
+
+    rgb = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
     results = face_mesh.process(rgb)
 
     gaze = "CENTER"
 
-    # Change stimulus after duration
-    if time.time() - stimulus_time > stimulus_duration:
-        trial_count += 1
-        current_stimulus = random.choice(stimulus_positions)
-        stimulus_time = time.time()
-        reaction_logged = False
+    # Fixation cross
+    if state == "FIXATION":
 
-    # Draw stimulus
-    if current_stimulus == "LEFT":
-        cv2.circle(frame, (int(w*0.2), int(h*0.5)), 30, (0,0,255), -1)
-    elif current_stimulus == "CENTER":
-        cv2.circle(frame, (int(w*0.5), int(h*0.5)), 30, (0,0,255), -1)
-    elif current_stimulus == "RIGHT":
-        cv2.circle(frame, (int(w*0.8), int(h*0.5)), 30, (0,0,255), -1)
+        cv2.putText(frame,"+",(w//2,h//2),
+                    cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255),4)
+
+        if time.time()-fixation_time > random.uniform(1.5,2.5):
+
+            stimulus = random.choice(stimulus_positions)
+            stimulus_time = time.time()
+            state = "STIMULUS"
+
+    # Stimulus display
+    if state == "STIMULUS":
+
+        if stimulus == "LEFT":
+            cv2.circle(frame,(80,h//2),40,(0,0,255),-1)
+
+        if stimulus == "RIGHT":
+            cv2.circle(frame,(w-80,h//2),40,(0,0,255),-1)
 
     if results.multi_face_landmarks:
+
         mesh_points = np.array(
-            [(int(p.x * w), int(p.y * h))
+            [(int(p.x*w),int(p.y*h))
              for p in results.multi_face_landmarks[0].landmark]
         )
 
-        left_iris = mesh_points[LEFT_IRIS]
-        right_iris = mesh_points[RIGHT_IRIS]
+        ratio = get_ratio(mesh_points)
 
-        left_center = np.mean(left_iris, axis=0)
-        right_center = np.mean(right_iris, axis=0)
-
-        left_ratio = (left_center[0] - mesh_points[33][0]) / (
-            mesh_points[133][0] - mesh_points[33][0]
-        )
-
-        right_ratio = (right_center[0] - mesh_points[362][0]) / (
-            mesh_points[263][0] - mesh_points[362][0]
-        )
-
-        avg_ratio = (left_ratio + right_ratio) / 2
-
-        if avg_ratio < 0.40:
-            gaze = "LEFT"
-        elif avg_ratio > 0.60:
-            gaze = "RIGHT"
+        # Detect gaze direction
+        if ratio < (left_thresh+center_thresh)/2:
+            gaze="LEFT"
+        elif ratio > (right_thresh+center_thresh)/2:
+            gaze="RIGHT"
         else:
-            gaze = "CENTER"
+            gaze="CENTER"
 
-        if not reaction_logged and gaze == current_stimulus:
-            reaction_time = time.time() - stimulus_time
-            reaction_times.append(reaction_time)
-            correct_count += 1
-            print(f"Trial {trial_count}: Correct in {reaction_time:.2f} sec")
-            reaction_logged = True
+        # -----------------------------
+        # Saccade speed
+        # -----------------------------
+        eye_x = np.mean([mesh_points[474][0], mesh_points[469][0]])
+        current_time = time.time()
 
-    cv2.putText(frame, f"Trial: {trial_count}/{total_trials}", (20,40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,0), 2)
+        speed = 0
 
-    cv2.putText(frame, f"Gaze: {gaze}", (20,80),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        if prev_eye_x is not None:
 
-    cv2.imshow("Gaze Stimulus Experiment", frame)
+            distance = abs(eye_x-prev_eye_x)
+            dt = current_time-prev_time
+
+            if dt > 0:
+                speed = distance/dt
+                saccade_speeds.append(speed)
+
+        prev_eye_x = eye_x
+        prev_time = current_time
+
+        # -----------------------------
+        # Reaction detection
+        # -----------------------------
+        if state=="STIMULUS" and gaze==stimulus:
+
+            reaction = time.time()-stimulus_time
+            reaction_times.append(reaction)
+
+            trial += 1
+            correct += 1
+
+            print(f"Trial {trial}: Stimulus={stimulus} Movement={gaze} Reaction={reaction:.2f} sec")
+
+            experiment_data.append({
+                "Trial":trial,
+                "Stimulus":stimulus,
+                "Movement":gaze,
+                "Reaction_Time":round(reaction,2),
+                "Saccade_Speed":round(speed,2),
+                "Correct":stimulus==gaze,
+                "Timestamp":datetime.now().strftime("%H:%M:%S")
+            })
+
+            state="FIXATION"
+            fixation_time=time.time()
+
+    cv2.imshow("Eye Experiment",frame)
 
     if cv2.waitKey(1) & 0xFF == 27:
         break
@@ -122,11 +215,34 @@ while trial_count < total_trials:
 cap.release()
 cv2.destroyAllWindows()
 
-# -------------------------------
+# -----------------------------
 # Final Results
-# -------------------------------
+# -----------------------------
 print("\nExperiment Finished")
-print(f"Accuracy: {correct_count}/{total_trials}")
+
+print(f"Accuracy: {correct}/{total_trials}")
 
 if reaction_times:
-    print(f"Average Reaction Time: {sum(reaction_times)/len(reaction_times):.2f} sec")
+    avg_reaction=sum(reaction_times)/len(reaction_times)
+    print(f"Average Reaction Time: {avg_reaction:.2f} sec")
+
+if saccade_speeds:
+    avg_speed=sum(saccade_speeds)/len(saccade_speeds)
+    print(f"Average Saccade Speed: {avg_speed:.2f} px/sec")
+
+# -----------------------------
+# Save Data
+# -----------------------------
+df = pd.DataFrame(experiment_data)
+
+file_path="blink_gaze_data.xlsx"
+
+try:
+    old_df=pd.read_excel(file_path)
+    df=pd.concat([old_df,df],ignore_index=True)
+except:
+    pass
+
+df.to_excel(file_path,index=False)
+
+print("Data saved to blink_gaze_data.xlsx")
