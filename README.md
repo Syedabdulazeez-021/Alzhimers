@@ -1,93 +1,226 @@
 # 🧠 Alzheimer’s Early Cognitive Screening using Eye Blink & Gaze Analysis
 
-This project implements a real-time eye blink detection and gaze tracking system using **MediaPipe** and **OpenCV**.  
-The objective is to analyze blink patterns and gaze behavior that may contribute to early cognitive assessment related to neurological conditions such as Alzheimer’s disease.
+This project implements a **real-time eye blink detection and gaze tracking system** using **MediaPipe and OpenCV**.  
+The objective is to analyze **blink patterns, gaze direction, and visual response behavior** that may help in **early cognitive screening related to neurological conditions such as Alzheimer’s disease**.
+
+The system combines **eye blink analysis and gaze stimulus experiments** to measure behavioral patterns associated with attention, reaction time, and visual tracking.
 
 ---
 
-## 📌 Project Overview
+# 📌 Project Overview
 
-This system performs:
+This system performs the following tasks:
 
-- Real-time face detection
-- Eye landmark detection using MediaPipe Face Mesh
-- Eye Aspect Ratio (EAR) calculation
-- Blink detection using thresholding
-- Gaze tracking experiment with stimulus points
-- Blink rate calculation
-- Real-time EAR plotting
-- Data logging to CSV
-
----
-
-## 🧠 Motivation
-
-Research indicates that:
-
-- Abnormal blink rate may correlate with cognitive decline
-- Gaze fixation irregularities may reflect attention and memory impairment
-- Delayed visual response to stimuli may indicate neurological dysfunction
-
-This project simulates a basic cognitive screening framework by analyzing:
-
-- Blink frequency
-- Blink duration
-- Gaze direction
-- Stimulus response behavior
+- Real-time **face detection**
+- **Eye landmark detection** using MediaPipe Face Mesh
+- **Eye Aspect Ratio (EAR)** calculation
+- **Blink detection** using EAR thresholding
+- **Blink rate calculation**
+- **Gaze direction detection**
+- **Stimulus-based gaze experiment**
+- **Reaction time measurement**
+- **Saccade movement analysis**
+- **Real-time EAR visualization**
+- **Data logging to CSV for analysis**
 
 ---
 
-## ⚙️ Technologies Used
+# 🧠 Motivation
 
-- Python
-- OpenCV
-- MediaPipe FaceMesh
-- NumPy
-- Matplotlib / Plotly (for visualization)
-- Custom GUI (if implemented)
+Research suggests that neurological disorders such as **Alzheimer’s disease and cognitive decline** may influence:
+
+- Blink frequency  
+- Blink duration  
+- Eye movement patterns  
+- Visual attention behavior  
+- Reaction time to stimuli  
+
+This project simulates a **basic cognitive screening framework** by analyzing:
+
+- Blink frequency  
+- Blink duration  
+- Eye openness patterns  
+- Gaze direction  
+- Visual stimulus response  
+
+These behavioral signals may provide **early indicators of cognitive impairment**.
 
 ---
 
-## 🔍 System Workflow
+# ⚙️ Technologies Used
 
-### Step 1: Face Detection
-MediaPipe FaceMesh detects 468 facial landmarks in real-time.
+The project uses the following technologies and libraries:
 
-### Step 2: Eye Landmark Extraction
-Specific landmark indices corresponding to left and right eyes are extracted.
+| Library | Purpose |
+|------|------|
+| Python | Programming language |
+| OpenCV | Webcam video capture and image processing |
+| MediaPipe FaceMesh | Facial landmark detection (468 landmarks) |
+| NumPy | Mathematical computations |
+| Matplotlib | Real-time plotting and visualization |
+| CSV / Pandas | Data logging and analysis |
 
-### Step 3: Eye Aspect Ratio (EAR) Calculation
+---
 
-EAR formula:
+# 🔍 System Workflow
 
+## Step 1 — Face Detection
+
+The webcam captures real-time video frames.  
+**MediaPipe Face Mesh** detects **468 facial landmarks**.
+
+These include landmarks for:
+
+- Eyes  
+- Nose  
+- Mouth  
+- Face contour  
+
+---
+
+## Step 2 — Eye Landmark Extraction
+
+Specific landmark indices corresponding to **left and right eyes** are extracted.
+
+These landmarks are used for **EAR calculation**.
+
+---
+
+## Step 3 — Eye Aspect Ratio (EAR)
+
+EAR measures the **vertical eye opening relative to eye width**.
+
+### Formula
+
+```
 EAR = (||p2 − p6|| + ||p3 − p5||) / (2 × ||p1 − p4||)
+```
 
-When EAR drops below a predefined threshold for consecutive frames → a blink is detected.
+Where:
 
-### Step 4: Blink Counter
-A counter increments when EAR remains below threshold for a minimum number of frames.
-
-### Step 5: Gaze Detection
-The eye region is analyzed to determine gaze direction based on pupil positioning.
-
-### Step 6: Stimulus Experiment
-Stimulus points appear on the screen, and gaze movement is tracked to measure response.
+- p1–p6 represent eye landmarks  
+- Vertical distances indicate eyelid distance  
+- Horizontal distance represents eye width  
 
 ---
 
-## 📊 Output
+## Step 4 — Blink Detection
+
+A blink is detected when:
+
+```
+EAR < Threshold
+```
+
+for a certain number of consecutive frames.
+
+The system then:
+
+- Increments blink counter  
+- Records blink timestamp  
+- Updates blink rate  
+
+---
+
+## Step 5 — Blink Rate Calculation
+
+```
+Blink Rate = Total Blinks / Time (minutes)
+```
+
+Blink irregularities may indicate:
+
+- Reduced attention  
+- Fatigue  
+- Neurological abnormalities  
+
+---
+
+# 👁 Gaze Detection
+
+The eye region is analyzed to determine **gaze direction** based on pupil movement.
+
+Possible gaze directions:
+
+- Left  
+- Right  
+- Center  
+
+This helps analyze **visual attention behavior**.
+
+---
+
+# 🎯 Gaze Stimulus Experiment
+
+The module:
+
+```
+gaze_stimulus_experiment.py
+```
+
+implements a **visual stimulus experiment** to measure gaze response.
+
+### Experiment Procedure
+
+1. A **stimulus point appears on the screen**
+2. The user is asked to **look at the stimulus**
+3. Eye movement is tracked
+4. System measures response behavior
+
+### Stimulus Positions
+
+- Left  
+- Right  
+- Top  
+- Bottom  
+- Center  
+
+---
+
+## Metrics Recorded
+
+The experiment measures:
+
+- Stimulus direction  
+- Gaze direction detected  
+- Reaction time  
+- Accuracy of response  
+- Timestamp  
+
+Example CSV output:
+
+```
+timestamp,stimulus_direction,gaze_direction,reaction_time,accuracy
+```
+
+This data helps analyze **visual attention and cognitive response speed**.
+
+---
+
+# 📊 Output
 
 The system provides:
 
-- Real-time blink counter
-- EAR graph visualization
-- Gaze direction detection
-- CSV data logging for further analysis
-- Stimulus response behavior
+### Real-Time Metrics
+
+- Blink counter  
+- Blink rate  
+- Eye openness (EAR)  
+- Gaze direction  
+
+### Visualization
+
+- EAR graph over time  
+- Blink pattern graph  
+- Stimulus response tracking  
+
+### Data Logging
+
+All experiment data is stored in **CSV format** for later analysis.
 
 ---
 
-## 📁 Project Structure
+# 📁 Project Structure
 
 ```
 Alzhimers/
@@ -100,51 +233,72 @@ Alzhimers/
 ├── FaceMeshModule.py
 ├── utils.py
 ├── requirements.txt
+│
 └── DATA/
 ```
 
 ---
 
-## 🚀 Installation & Execution
+# 🚀 Installation & Execution
 
-### 1️⃣ Clone Repository
+## Clone Repository
 
 ```
 git clone https://github.com/Syedabdulazeez-021/Alzhimers.git
 cd Alzhimers
 ```
 
-### 2️⃣ Install Dependencies
+---
+
+## Install Dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Run Blink Detection
+or install manually
+
+```
+pip install opencv-python mediapipe numpy matplotlib
+```
+
+---
+
+## Run Blink Detection
 
 ```
 python blink_counter.py
 ```
 
-### 4️⃣ Run Gaze Experiment
+---
+
+## Run Gaze Stimulus Experiment
 
 ```
 python gaze_stimulus_experiment.py
 ```
 
+This will:
+
+- Show visual stimulus points  
+- Track gaze movement  
+- Measure reaction time  
+- Save results to CSV  
+
 ---
 
-## 📈 Future Enhancements
+# 📈 Future Enhancements
 
-- Machine learning based cognitive scoring
+- Machine learning based **cognitive scoring**
 - Blink anomaly classification
 - Dementia dataset integration
-- Performance optimization
-- Clinical validation support
+- Advanced gaze tracking algorithms
+- Clinical validation
+- Real-time cognitive monitoring dashboard
 
 ---
 
-## 👨‍💻 Author
+# 👨‍💻 Author
 
 **Syed Abdul Azeez**  
 B.Tech Computer Science  
@@ -152,6 +306,8 @@ AI & Computer Vision Enthusiast
 
 ---
 
-## ⚠ Disclaimer
+# ⚠ Disclaimer
 
-This project is a research-oriented implementation and is not a certified medical diagnostic tool.
+This project is intended for **research and educational purposes only**.
+
+It is **not a certified medical diagnostic tool** and should not be used as a substitute for professional medical evaluation.
